@@ -1,0 +1,20 @@
+spring:
+  profiles:
+    active: dynamodb       # switch to: timestream
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# The AWS SDK reads region + credentials from the standard chain
+# (AWS_REGION / AWS_PROFILE env vars, ~/.aws/config, or an instance/task role).
+sink:
+  dynamodb:
+    note-table: note-events
+    chord-table: chord-events
+  timestream:
+    database: piano
+    note-table: note-events
+    chord-table: chord-events

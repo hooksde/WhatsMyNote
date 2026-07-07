@@ -1,0 +1,17 @@
+spring:
+  profiles:
+    active: session   # switch to: overlap (interval-overlap detector)
+  kafka:
+    # Point at local Kafka for dev, or your MSK bootstrap brokers in the cloud
+    bootstrap-servers: localhost:9092
+    streams:
+      application-id: chord-detection
+      properties:
+        commit.interval.ms: 200
+        # exactly-once keeps chord output consistent if the app restarts mid-session
+        processing.guarantee: exactly_once_v2
+        # session/suppress logic relies on event time; pull it from the record
+        default.timestamp.extractor: org.apache.kafka.streams.processor.WallclockTimestampExtractor
+    properties:
+      # JsonSerde needs to trust the package it deserializes into
+      spring.json.trusted.packages: "com.example.chord"
