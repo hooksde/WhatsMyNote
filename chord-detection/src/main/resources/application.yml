@@ -14,4 +14,4 @@ spring:
         default.timestamp.extractor: org.apache.kafka.streams.processor.WallclockTimestampExtractor
     properties:
       # JsonSerde needs to trust the package it deserializes into
-      spring.json.trusted.packages: "com.example.chord"
+      spring.json.trusted.packages: "com.job4me.chord"

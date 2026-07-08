@@ -126,7 +126,7 @@ export AWS_REGION=us-east-1
 #    - chord-detection   SPRING_PROFILES_ACTIVE=session|overlap
 #    - sink              SPRING_PROFILES_ACTIVE=dynamodb
 # 4. Run the standalone capture app and play:
-#    java com.example.midi.MidiCaptureApp ["<device-name-substring>"]
+#    java com.job4me.midi.MidiCaptureApp ["<device-name-substring>"]
 ```
 
 The apps default to `localhost:9092`, so no Kafka config is needed locally.
@@ -158,7 +158,7 @@ spring.kafka.properties.sasl.client.callback.handler.class=software.amazon.msk.a
 
 ## Conventions
 
-- Packages: `com.example.midi`, `com.example.chord`, `com.example.sink`.
+- Packages: `com.job4me.midi`, `com.job4me.chord`, `com.job4me.sink`.
 - One responsibility per module; modules are independently deployable.
 - Keep `NoteEvent`/`ChordEvent` field names identical across modules.
 - New AWS permissions go on the **task role** (`infra/iam.tf`), not the
