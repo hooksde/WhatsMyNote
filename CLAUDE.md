@@ -143,6 +143,25 @@ export AWS_REGION=us-east-1
 
 The apps default to `localhost:9092`, so no Kafka config is needed locally.
 
+## Container images
+
+Each of `ingest`/`chord-detection`/`sink-service` has its own `Dockerfile`, but
+the **build context is the repo root**, not the module directory — the reactor
+needs every module's `pom.xml` to resolve, even though `-pl <module> -am` only
+compiles that module (there are no dependency edges between the three, so
+`-am` doesn't pull in the others' source). `midi-capture` has no Dockerfile;
+it's a plain Java app that runs on the machine with the keyboard, never in a
+container.
+
+```bash
+docker build -f ingest/Dockerfile          -t ingest:latest          .
+docker build -f chord-detection/Dockerfile -t chord-detection:latest .
+docker build -f sink-service/Dockerfile    -t sink-service:latest    .
+```
+
+Tag and push each to the registry your cloud's Terraform output gives you (see
+the AWS/Azure sections below) before the deployed apps can start.
+
 ## Deploy (AWS)
 
 ```bash
@@ -150,7 +169,15 @@ cd infra && terraform init && terraform apply
 ```
 
 `terraform apply` creates empty ECR repos, so the services won't start until you
-build/tag/push images (see the `ecr_repos` output), then let ECS pull them.
+build (see "Container images" above), tag, and push images to the `ecr_repos`
+output, then let ECS pull them:
+
+```bash
+aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account>.dkr.ecr.<region>.amazonaws.com
+docker tag ingest:latest <ecr_repos.ingest>:latest && docker push <ecr_repos.ingest>:latest
+# ...repeat for chord-detection and sink
+```
+
 Set the capture app's `INGEST_URL` to the `ingest_url` output. Run
 `terraform destroy` when idle — MSK Serverless and NAT bill hourly.
 
@@ -177,9 +204,17 @@ already sets this per service in `infra/variables.tf`'s `local.services`).
 cd infra-azure && terraform init && terraform apply
 ```
 
-`terraform apply` creates an empty ACR, so the apps won't start until you
-build/tag/push images to the `acr_login_server` output, then let Container Apps
-pull them. Set the capture app's `INGEST_URL` to the `ingest_url` output. Run
+`terraform apply` creates an empty ACR, so the apps won't start until you build
+(see "Container images" above), tag, and push images to the `acr_login_server`
+output, then let Container Apps pull them:
+
+```bash
+az acr login --name <acr-name>
+docker tag ingest:latest <acr_login_server>/ingest:latest && docker push <acr_login_server>/ingest:latest
+# ...repeat for chord-detection and sink
+```
+
+Set the capture app's `INGEST_URL` to the `ingest_url` output. Run
 `terraform destroy` when idle — Event Hubs Standard and Cosmos DB bill regardless
 of traffic (Cosmos is serverless/pay-per-request, but the Event Hubs namespace
 is an hourly charge).
@@ -233,10 +268,10 @@ Activate with `SPRING_PROFILES_ACTIVE=<topology-or-sink-profile>,azure`
 health check); both chord-detection topologies, each with a wall-clock
 punctuator (session-window last-chord flush via heartbeat injection; overlap
 stuck-note eviction); sink service (DynamoDB, Timestream, and Cosmos DB);
-Maven multi-module build; local docker-compose; Terraform for both AWS
-(MSK/DynamoDB/ECR/ECS/Fargate/ALB) and Azure (Event Hubs/Cosmos DB/ACR/Container
-Apps/Key Vault); MSK IAM and Event Hubs SASL auth wiring; unit + topology tests
-for chord-detection, sink-service, and ingest.
+Maven multi-module build; per-module Dockerfiles; local docker-compose;
+Terraform for both AWS (MSK/DynamoDB/ECR/ECS/Fargate/ALB) and Azure (Event
+Hubs/Cosmos DB/ACR/Container Apps/Key Vault); MSK IAM and Event Hubs SASL auth
+wiring; unit + topology tests for chord-detection, sink-service, and ingest.
 
 **Not yet built (good next tasks):**
 - A read-side web dashboard over either DB.
@@ -245,3 +280,8 @@ for chord-detection, sink-service, and ingest.
   OAUTHBEARER auth for Event Hubs) would tighten this.
 - Neither Terraform stack has been run through `terraform validate`/`plan`
   against real cloud credentials in this environment — review before applying.
+- Whether MSK Serverless auto-creates topics on first produce is unconfirmed;
+  if it doesn't, `note-events`/`chord-events` need to be created explicitly via
+  an IAM-authenticated Kafka admin client before traffic will flow.
+- No CI/CD — deploying either cloud today is manual `terraform apply` +
+  manual `docker build`/tag/push.

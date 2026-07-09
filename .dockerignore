@@ -1,0 +1,19 @@
+# Keeps the build context small -- each Dockerfile only needs poms + one
+# module's src (copied explicitly), never any of this.
+.git/
+target/
+build/
+*.class
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.log
+infra/
+infra-azure/
+local-dev/
+midi-capture/
+*.md
+.DS_Store
