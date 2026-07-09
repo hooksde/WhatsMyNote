@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">MIDI Capture</string>
+    <string name="ingest_url_hint">Ingest URL, e.g. http://192.168.1.50:8080/api/notes</string>
+    <string name="source_id_hint">Source ID</string>
+    <string name="refresh_devices">Refresh devices</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="no_devices">No MIDI devices found -- plug in a USB MIDI keyboard and tap Refresh</string>
+</resources>

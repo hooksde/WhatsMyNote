@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A simple music-note glyph, centered in the adaptive icon's safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/launcher_foreground"
+        android:pathData="M60,24 L60,60.5 C57.6,59 54.8,58.1 51.8,58.1 C43.6,58.1 37,64.7 37,72.9 C37,81.1 43.6,87.7 51.8,87.7 C60,87.7 66.6,81.1 66.6,72.9 L66.6,38.4 L78,34.6 L78,24 Z" />
+</vector>

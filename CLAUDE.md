@@ -39,7 +39,8 @@ detector's output (`chord-events`) is also sinked. Both topics reach the DB.
 
 | Path                | What it is                             | Runtime                 |
 |---------------------|-----------------------------------------|--------------------------|
-| `midi-capture/`     | Standalone edge producer                | Plain Java (no Spring)   |
+| `midi-capture/`     | Standalone desktop edge producer        | Plain Java (no Spring)   |
+| `android-capture/`  | Android edge producer (USB MIDI host)   | Kotlin / Gradle          |
 | `ingest/`           | HTTP → Kafka gateway                    | Spring Boot              |
 | `chord-detection/`  | Kafka Streams chord detector            | Spring Boot              |
 | `sink-service/`     | Kafka consumer → cloud DB               | Spring Boot              |
@@ -142,6 +143,38 @@ export AWS_REGION=us-east-1
 ```
 
 The apps default to `localhost:9092`, so no Kafka config is needed locally.
+
+## Android edge client (android-capture/)
+
+A second edge producer -- same role as `midi-capture/`, same wire contract
+(`NoteEvent` JSON, `POST <ingest-url>/api/notes`), but running on a phone with
+a USB MIDI keyboard plugged in via OTG instead of a desktop with an onboard
+MIDI port. Separate Gradle/Kotlin build, not part of the Maven reactor, same
+as `midi-capture/` isn't either.
+
+- `MidiNoteReceiver` parses the raw USB MIDI byte stream (`android.media.midi`)
+  the same way the desktop app's `NoteReceiver` parses `ShortMessage`s --
+  including the same NOTE_ON-with-velocity-0-means-release handling.
+- `HttpEventSender` POSTs fire-and-forget on a background executor, same
+  reasoning as the desktop app: never block the MIDI callback on the network.
+- `minSdk 33` (uses `MidiManager.getDevicesForTransport`, which replaced the
+  deprecated `getDevices()` in API 33) -- fine since this targets a Fold 5,
+  not old hardware.
+- The manifest declares `android.hardware.usb.host` and `android.software.midi`
+  as required features.
+
+```bash
+cd android-capture
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb logcat | grep MidiCapture   # while it's running, to watch it work
+```
+
+In the app, set the Ingest URL to wherever `ingest` is actually reachable from
+the phone -- **not `localhost`**, that would mean the phone itself. On the
+same Wi-Fi as a locally-running `ingest`, use the host machine's LAN IP
+(`http://<lan-ip>:8080/api/notes`); against a cloud deployment, use the
+`ingest_url` Terraform output.
 
 ## Container images
 
@@ -247,7 +280,7 @@ Activate with `SPRING_PROFILES_ACTIVE=<topology-or-sink-profile>,azure`
 ## Conventions
 
 - Packages: `com.job4me.midi`, `com.job4me.chord`, `com.job4me.sink`,
-  `com.job4me.ingest`.
+  `com.job4me.ingest`, `com.job4me.midicapture` (Android).
 - One responsibility per module; modules are independently deployable.
 - Keep `NoteEvent`/`ChordEvent` field names identical across modules.
 - New AWS permissions go on the **task role** (`infra/iam.tf`), not the
@@ -264,16 +297,21 @@ Activate with `SPRING_PROFILES_ACTIVE=<topology-or-sink-profile>,azure`
 
 ## Current status
 
-**Implemented:** MIDI capture app; ingest service (`POST /api/notes`, actuator
-health check); both chord-detection topologies, each with a wall-clock
-punctuator (session-window last-chord flush via heartbeat injection; overlap
-stuck-note eviction); sink service (DynamoDB, Timestream, and Cosmos DB);
-Maven multi-module build; per-module Dockerfiles; local docker-compose;
-Terraform for both AWS (MSK/DynamoDB/ECR/ECS/Fargate/ALB) and Azure (Event
+**Implemented:** Desktop MIDI capture app; Android MIDI capture app
+(`android-capture/`, USB host mode, builds clean with `./gradlew
+assembleDebug`); ingest service (`POST /api/notes`, actuator health check);
+both chord-detection topologies, each with a wall-clock punctuator
+(session-window last-chord flush via heartbeat injection; overlap stuck-note
+eviction); sink service (DynamoDB, Timestream, and Cosmos DB); Maven
+multi-module build; per-module Dockerfiles; local docker-compose; Terraform
+for both AWS (MSK/DynamoDB/ECR/ECS/Fargate/ALB) and Azure (Event
 Hubs/Cosmos DB/ACR/Container Apps/Key Vault); MSK IAM and Event Hubs SASL auth
 wiring; unit + topology tests for chord-detection, sink-service, and ingest.
 
 **Not yet built (good next tasks):**
+- The Android app has never run on a physical device -- built and verified
+  via `aapt2 dump badging` only. Needs an on-device pass: install, open a USB
+  MIDI keyboard, confirm notes actually reach `ingest`.
 - A read-side web dashboard over either DB.
 - `infra-azure` uses one Event Hubs connection string (namespace-level SAS) for
   all three apps; scoping a separate SAS rule per app (or moving to Azure AD

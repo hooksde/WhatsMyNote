@@ -6,6 +6,13 @@ build/
 !**/gradle/wrapper/gradle-wrapper.jar
 .gradle/
 
+# Android
+local.properties
+*.apk
+*.aab
+.cxx/
+captures/
+
 # IDE
 .idea/
 *.iml
