@@ -1,0 +1,12 @@
+# Activated in Azure via SPRING_PROFILES_ACTIVE=azure (see infra-azure/containerapps.tf).
+# Bootstrap servers come from SPRING_KAFKA_BOOTSTRAP_SERVERS -- the Event Hubs
+# namespace's Kafka-compatible endpoint (Standard tier enables it automatically,
+# no separate Kafka-mode flag). The SASL password is the Event Hubs connection
+# string, injected via a Key-Vault-backed Container Apps secret; "$ConnectionString"
+# is a literal required by Event Hubs, not a placeholder.
+spring:
+  kafka:
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${EVENTHUB_CONNECTION_STRING}";

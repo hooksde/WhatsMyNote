@@ -1,0 +1,20 @@
+# Activate alongside the sink profile: SPRING_PROFILES_ACTIVE=cosmosdb,azure.
+# Bootstrap servers come from SPRING_KAFKA_BOOTSTRAP_SERVERS -- the Event Hubs
+# namespace's Kafka-compatible endpoint. The SASL password is the Event Hubs
+# connection string, injected via a Key-Vault-backed Container Apps secret;
+# "$ConnectionString" is a literal required by Event Hubs, not a placeholder.
+spring:
+  kafka:
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${EVENTHUB_CONNECTION_STRING}";
+
+# COSMOS_ENDPOINT is injected by Terraform (not a secret -- auth is via the
+# container's managed identity, see CosmosDbEventSink).
+sink:
+  cosmos:
+    endpoint: ${COSMOS_ENDPOINT}
+    database: piano
+    note-container: note-events
+    chord-container: chord-events
